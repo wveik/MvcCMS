@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MvcCMS.Models;
+using MvcCMS.Models.ModelBinders;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -13,6 +15,8 @@ namespace MvcCMS
         {
             AreaRegistration.RegisterAllAreas();
             RouteConfig.RegisterRoutes(RouteTable.Routes);
+
+            ModelBinders.Binders.Add(typeof(Post), new PostModelBinder());
         }
     }
 }
