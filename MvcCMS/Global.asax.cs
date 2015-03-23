@@ -1,4 +1,5 @@
-﻿using MvcCMS.Models;
+﻿using MvcCMS.App_Start;
+using MvcCMS.Models;
 using MvcCMS.Models.ModelBinders;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,7 @@ namespace MvcCMS
         {
             AreaRegistration.RegisterAllAreas();
             RouteConfig.RegisterRoutes(RouteTable.Routes);
+            AuthDbConfig.RegisterAdmin();
 
             ModelBinders.Binders.Add(typeof(Post), new PostModelBinder());
         }
