@@ -33,14 +33,7 @@ namespace MvcCMS.Areas.Admin.Controllers {
         [HttpGet]
         [Route("create")]
         public ActionResult Create() {
-            var model = new Post() {
-                Tags = new List<string>() {
-                    "test-1"
-                    , "test-2"
-                }
-            };
-
-            return View(model);
+            return View(new Post());
         }
 
         // /admin/post/create/ 
@@ -52,10 +45,21 @@ namespace MvcCMS.Areas.Admin.Controllers {
                 return View(model);
             }
 
-            //TODO: update model in data store
-            _repository.Create(model);
+            if (string.IsNullOrWhiteSpace(model.Id)) {
+                model.Id = model.Title;
+            }
 
-            return RedirectToAction("index");
+            model.Id = model.Id.MakeUrlFriendly();
+            model.Tags = model.Tags.Select(x => x.MakeUrlFriendly()).ToList();
+
+            try {
+                _repository.Create(model);
+
+                return RedirectToAction("index");
+            } catch (Exception ex) {
+                ModelState.AddModelError("key", ex);
+                return View(model);
+            }
         }
 
         // /admin/post/edit/post-to-edit
@@ -77,19 +81,27 @@ namespace MvcCMS.Areas.Admin.Controllers {
         [Route("edit/{postId}")]
         [ValidateAntiForgeryToken]
         public ActionResult Edit(string postId, Post model) {
-            var post = _repository.Get(postId);
-
-            if (post == null)
-                return HttpNotFound();
-
             if (!ModelState.IsValid) {
                 return View(model);
             }
 
-            //TODO: update model in data store
-            _repository.Edit(postId, model);
+            if (string.IsNullOrWhiteSpace(model.Id)) {
+                model.Id = model.Title;
+            }
 
-            return RedirectToAction("index");
+            model.Id = model.Id.MakeUrlFriendly();
+            model.Tags = model.Tags.Select(x => x.MakeUrlFriendly()).ToList();
+
+            try {
+                _repository.Edit(postId, model);
+
+                return RedirectToAction("index");
+            } catch (KeyNotFoundException ex) {
+                return HttpNotFound();
+            } catch (Exception ex) {
+                ModelState.AddModelError("key", ex);
+                return View(model);
+            }
         }
     }
 }
