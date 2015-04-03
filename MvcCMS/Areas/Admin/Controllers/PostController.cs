@@ -43,7 +43,7 @@ namespace MvcCMS.Areas.Admin.Controllers {
             return View(model);
         }
 
-        // /admin/post/create/
+        // /admin/post/create/ 
         [HttpPost]
         [Route("create")]
         [ValidateAntiForgeryToken]
