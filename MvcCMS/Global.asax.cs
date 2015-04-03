@@ -1,6 +1,6 @@
-﻿using MvcCMS.App_Start;
-using MvcCMS.Models;
-using MvcCMS.Models.ModelBinders;
+﻿using MvcCms.Models;
+using MvcCms.Models.ModelBinders;
+using MvcCMS.App_Start;
 using System;
 using System.Collections.Generic;
 using System.Linq;

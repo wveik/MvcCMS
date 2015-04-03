@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNet.Identity.EntityFramework;
-using MvcCMS.Models;
+using MvcCms.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -7,11 +7,14 @@ using System.Data.Entity;
 using System.Linq;
 using System.Web;
 
-namespace MvcCMS.Data {
-    public class CmsContext : IdentityDbContext<CmsUser> {
+namespace MvcCms.Data
+{
+    public class CmsContext : IdentityDbContext<CmsUser>
+    {
         public DbSet<Post> Posts { get; set; }
 
-        protected override void OnModelCreating(DbModelBuilder modelBuilder) {
+        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        {
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Post>()

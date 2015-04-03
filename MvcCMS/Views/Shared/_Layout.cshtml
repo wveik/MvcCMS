@@ -16,9 +16,7 @@
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav">
                     @{
-                        Html.RenderAction("AdminMenu", new { controller = "admin", area = "admin" });
-                        Html.RenderAction("AuthenticationLink", new { controller = "admin", area = "admin" });
-                        
+                        Html.RenderAction("AuthenticationLink", new { controller = "admin", area = "admin" });                        
                     }
                 </ul>
 
@@ -30,7 +28,6 @@
     </div>
     <script src="~/js/jquery-2.1.1.min.js"></script>
     <script src="~/js/jquery-ui.min-1.11.1.js"></script>
-    <script src="~/js/admin.js"></script>
     @RenderSection("scripts", required: false)
 </body>
 </html>

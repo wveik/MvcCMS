@@ -1,24 +1,45 @@
-﻿using MvcCMS.Models;
+﻿using MvcCms.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
+using System.Data.Entity;
 
-namespace MvcCMS.Data {
-    public class PostRepository : IPostRepository {
-        public Post Get(string id) {
-            using (var db = new CmsContext()) {
-                return db.Posts.Include("Author")
-                        .SingleOrDefault(x => x.Id == id);      
+namespace MvcCms.Data
+{
+    public class PostRepository : IPostRepository
+    {
+        public int CountPublished
+        {
+            get
+            {
+                using (var db = new CmsContext())
+                {
+                    return db.Posts.Count(p => p.Published < DateTime.Now);
+                }
             }
         }
 
-        public void Edit(string id, Post updatedItem) {
-            using (var db = new CmsContext()) {
-                var post = db.Posts.SingleOrDefault(x => x.Id == id);
+        public Post Get(string id)
+        {
+            using (var db = new CmsContext())
+            {
+                return db.Posts.Include("Author")
+                    .SingleOrDefault(post => post.Id == id);
+            }
+        }
 
-                if (post == null) {
-                    throw new KeyNotFoundException(string.Format("Нет post id : {0} в базе данных", id));
+        public void Edit(string id, Models.Post updatedItem)
+        {
+            using (var db = new CmsContext())
+            {
+                var post = db.Posts.SingleOrDefault(p => p.Id == id);
+
+                if (post == null)
+                {
+                    throw new KeyNotFoundException("Сообщение с идентификатором "
+                        + id + " не существует в data store.");
                 }
 
                 post.Id = updatedItem.Id;
@@ -31,31 +52,98 @@ namespace MvcCMS.Data {
             }
         }
 
-        public void Create(Post model) {
-            using (var db = new CmsContext()) {
-                var post = db.Posts.SingleOrDefault(x => x.Id == model.Id);
+        public void Create(Post model)
+        {
+            using (var db = new CmsContext())
+            {
+                var post = db.Posts.SingleOrDefault(p => p.Id == model.Id);
 
-                if (post != null) {
-                    throw new ArgumentException(string.Format("Этот post с id : {0} уже есть в базе данных", post.Id));
+                if (post != null)
+                {
+                    throw new ArgumentException("Сообщение с идентификатором " + model.Id + " уже существует.");
                 }
 
-                if (string.IsNullOrWhiteSpace(model.Id)) {
-                    model.Id = model.Title;
-                }
-
-                model.Id = model.Id.MakeUrlFriendly();
-                model.Tags = model.Tags.Select(x => x.MakeUrlFriendly()).ToList();
-
-                db.Posts.Attach(model);
+                db.Posts.Add(model);
                 db.SaveChanges();
             }
         }
 
-        public IEnumerable<Post> GetAll() {
-            using (var db = new CmsContext()) {
-                return db.Posts.Include("Author")
-                            .OrderByDescending(x => x.Create).ToArray();
+        public async Task<IEnumerable<Post>> GetAllAsync()
+        {
+            using (var db = new CmsContext())
+            {
+                return await db.Posts.Include("Author")
+                    .OrderByDescending(post => post.Created).ToArrayAsync();
             }
         }
+
+        public async Task<IEnumerable<Post>> GetPostsByAuthorAsync(string authorId)
+        {
+            using (var db = new CmsContext())
+            {
+                return await db.Posts.Include("Author")
+                    .Where(p => p.AuthorId == authorId)
+                    .OrderByDescending(post => post.Created).ToArrayAsync();
+            }
+        }
+
+        public void Delete(string id)
+        {
+            using (var db = new CmsContext())
+            {
+                var post = db.Posts.SingleOrDefault(p => p.Id == id);
+
+                if (post == null)
+                {
+                    throw new KeyNotFoundException("Сообщение с идентификатором " + id + " не существует");
+                }
+
+                db.Posts.Remove(post);
+                db.SaveChanges();
+            }
+        }
+
+        public async Task<IEnumerable<Post>> GetPublishedPostsAsync()
+        {
+            using (var db = new CmsContext())
+            {
+                return await db.Posts
+                    .Include("Author")
+                    .Where(p => p.Published < DateTime.Now)
+                    .OrderByDescending(p => p.Published)
+                    .ToArrayAsync();
+            }
+        }
+
+        public async Task<IEnumerable<Post>> GetPostsByTagAsync(string tagId)
+        {
+            using (var db = new CmsContext())
+            {
+                var posts = await db.Posts
+                    .Include("Author")
+                    .Where(post => post.CombinedTags.Contains(tagId))
+                    .ToListAsync();
+
+                return posts.Where(post =>
+                    post.Tags.Contains(tagId, StringComparer.CurrentCultureIgnoreCase))
+                    .ToList();
+            }
+        }
+
+        public async Task<IEnumerable<Post>> GetPageAsync(int pageNumber, int pageSize)
+        {
+            using (var db = new CmsContext())
+            {
+                var skip = (pageNumber - 1) * pageSize;
+
+                return await db.Posts.Where(p => p.Published < DateTime.Now)
+                               .Include("Author")
+                               .OrderByDescending(p => p.Published)
+                               .Skip(skip)
+                               .Take(pageSize)
+                               .ToArrayAsync();
+            }
+        }
+
     }
 }

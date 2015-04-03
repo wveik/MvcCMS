@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.EntityFramework;
-using MvcCMS.Data;
-using MvcCMS.Models;
+using MvcCms.Data;
+using MvcCms.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,63 +1,91 @@
-﻿using MvcCMS.Data;
-using MvcCMS.Models;
+﻿using MvcCms.Data;
+using MvcCms.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 
-namespace MvcCMS.Areas.Admin.Controllers {
+namespace MvcCms.Areas.Admin.Controllers
+{
     // /admin/post
+
     [RouteArea("Admin")]
     [RoutePrefix("post")]
-    public class PostController : Controller {
-
+    [Authorize]
+    public class PostController : Controller
+    {
         private readonly IPostRepository _repository;
+        private readonly IUserRepository _users;
+
 
         public PostController()
-            : this(new PostRepository()) { 
-        
-        }
+            : this(new PostRepository(), new UserRepository()) { }
 
-        public PostController(IPostRepository repository) {
+        public PostController(IPostRepository repository, IUserRepository userRepository)
+        {
             _repository = repository;
+            _users = userRepository;
         }
 
         // GET: Admin/Post
-        public ActionResult Index() {
-            var posts = _repository.GetAll();
+        [Route("")]
+        public async Task<ActionResult> Index()
+        {
+            if (!User.IsInRole("author"))
+            {
+                return View(await _repository.GetAllAsync());
+            }
+
+            var user = await GetLoggedInUser();
+            var posts = await _repository.GetPostsByAuthorAsync(user.Id);
+
             return View(posts);
         }
 
         // /admin/post/create/
         [HttpGet]
         [Route("create")]
-        public ActionResult Create() {
+        public ActionResult Create()
+        {
             return View(new Post());
         }
 
-        // /admin/post/create/ 
+        // /admin/post/create/
         [HttpPost]
         [Route("create")]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(Post model) {
-            if (!ModelState.IsValid) {
+        public async Task<ActionResult> Create(Post model)
+        {
+            if (!ModelState.IsValid)
+            {
                 return View(model);
             }
 
-            if (string.IsNullOrWhiteSpace(model.Id)) {
+            var user = await GetLoggedInUser();
+
+            if (string.IsNullOrWhiteSpace(model.Id))
+            {
                 model.Id = model.Title;
             }
 
             model.Id = model.Id.MakeUrlFriendly();
-            model.Tags = model.Tags.Select(x => x.MakeUrlFriendly()).ToList();
+            model.Tags = model.Tags.Select(tag => tag.MakeUrlFriendly()).ToList();
 
-            try {
+            model.Created = DateTime.Now;
+
+            model.AuthorId = user.Id;
+
+            try
+            {
                 _repository.Create(model);
 
                 return RedirectToAction("index");
-            } catch (Exception ex) {
-                ModelState.AddModelError("key", ex);
+            }
+            catch (Exception e)
+            {
+                ModelState.AddModelError("key", e);
                 return View(model);
             }
         }
@@ -65,13 +93,24 @@ namespace MvcCMS.Areas.Admin.Controllers {
         // /admin/post/edit/post-to-edit
         [HttpGet]
         [Route("edit/{postId}")]
-        public ActionResult Edit(string postId) {
-            //TODO: to retrieve the model from the data store
-
+        public async Task<ActionResult> Edit(string postId)
+        {
             var post = _repository.Get(postId);
 
             if (post == null)
+            {
                 return HttpNotFound();
+            }
+
+            if (User.IsInRole("author"))
+            {
+                var user = await GetLoggedInUser();
+
+                if (post.AuthorId != user.Id)
+                {
+                    return new HttpUnauthorizedResult();
+                }
+            }
 
             return View(post);
         }
@@ -80,28 +119,105 @@ namespace MvcCMS.Areas.Admin.Controllers {
         [HttpPost]
         [Route("edit/{postId}")]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(string postId, Post model) {
-            if (!ModelState.IsValid) {
+        public async Task<ActionResult> Edit(string postId, Post model)
+        {
+            if (!ModelState.IsValid)
+            {
                 return View(model);
             }
 
-            if (string.IsNullOrWhiteSpace(model.Id)) {
+            if (User.IsInRole("author"))
+            {
+                var user = await GetLoggedInUser();
+                var post = _repository.Get(postId);
+
+                try
+                {
+                    if (post.AuthorId != user.Id)
+                    {
+                        return new HttpUnauthorizedResult();
+                    }
+                }
+                catch { }
+            }
+
+            if (string.IsNullOrWhiteSpace(model.Id))
+            {
                 model.Id = model.Title;
             }
 
             model.Id = model.Id.MakeUrlFriendly();
-            model.Tags = model.Tags.Select(x => x.MakeUrlFriendly()).ToList();
+            model.Tags = model.Tags.Select(tag => tag.MakeUrlFriendly()).ToList();
 
-            try {
+            try
+            {
                 _repository.Edit(postId, model);
 
                 return RedirectToAction("index");
-            } catch (KeyNotFoundException ex) {
+            }
+            catch (KeyNotFoundException e)
+            {
                 return HttpNotFound();
-            } catch (Exception ex) {
-                ModelState.AddModelError("key", ex);
+            }
+            catch (Exception e)
+            {
+                ModelState.AddModelError(string.Empty, e.Message);
                 return View(model);
             }
+
+        }
+
+        // /admin/post/delete/post-to-edit
+        [HttpGet]
+        [Route("delete/{postId}")]
+        [Authorize(Roles="admin, editor")]
+        public ActionResult Delete(string postId)
+        {
+            var post = _repository.Get(postId);
+
+            if (post == null)
+            {
+                return HttpNotFound();
+            }
+
+            return View(post);
+        }
+
+        // /admin/post/delete/post-to-edit
+        [HttpPost]
+        [Route("delete/{postId}")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "admin, editor")]
+        public ActionResult Delete(string postId, string foo)
+        {
+            try
+            {
+                _repository.Delete(postId);
+
+                return RedirectToAction("index");
+            }
+            catch (KeyNotFoundException e)
+            {
+                return HttpNotFound();
+            }
+        }
+
+        private async Task<CmsUser> GetLoggedInUser()
+        {
+            return await _users.GetUserByNameAsync(User.Identity.Name);
+        }
+
+        private bool _isDisposed;
+        protected override void Dispose(bool disposing)
+        {
+
+            if (!_isDisposed)
+            {
+                _users.Dispose();
+            }
+            _isDisposed = true;
+
+            base.Dispose(disposing);
         }
     }
 }
